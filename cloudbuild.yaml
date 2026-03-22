@@ -8,6 +8,7 @@ steps:
       - --runtime=python311
       - --trigger-http
       - --allow-unauthenticated
+      - --no-gen2
       - --region=northamerica-northeast2
       - --memory=512Mi
       - --timeout=60s
