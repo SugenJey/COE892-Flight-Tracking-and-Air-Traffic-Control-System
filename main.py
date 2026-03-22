@@ -1,19 +1,17 @@
+from flask import Flask, jsonify, request
 import os
 import sqlalchemy
 from sqlalchemy import text
-import functions_framework
-from flask import jsonify
 
-@functions_framework.http
-def time_http(request):
+app = Flask(__name__)
+
+@app.route("/", methods=["GET"])
+def time_http():
     try:
         DB_USER = os.environ.get("DB_USER")
         DB_PASS = os.environ.get("DB_PASS")
         DB_NAME = os.environ.get("DB_NAME")
         INSTANCE_CONNECTION_NAME = os.environ.get("INSTANCE_CONNECTION_NAME")
-
-        if not all([DB_USER, DB_PASS, DB_NAME, INSTANCE_CONNECTION_NAME]):
-            return jsonify({"error": "Missing env vars"}), 500
 
         db_url = sqlalchemy.engine.url.URL.create(
             drivername="mysql+pymysql",
