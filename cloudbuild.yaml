@@ -6,7 +6,6 @@ steps:
       - airports
       - --source=.
       - --region=northamerica-northeast2
-      - --entry-point=time_http
       - --allow-unauthenticated
       - --memory=512Mi
       - --cpu=1
