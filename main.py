@@ -2,24 +2,31 @@ import os
 import sqlalchemy
 from sqlalchemy import text
 import functions_framework
+from google.cloud.sql.connector import Connector
 
 # Load environment vars
 DB_USER = os.environ.get("DB_USER")
 DB_PASS = os.environ.get("DB_PASS")
 DB_NAME = os.environ.get("DB_NAME")
-
 INSTANCE_CONNECTION_NAME = os.environ.get("INSTANCE_CONNECTION_NAME")
 
-# Engine Configuration
-db_url = sqlalchemy.engine.url.URL.create(
-    drivername="mysql+pymysql",
-    username=DB_USER,
-    password=DB_PASS,
-    database=DB_NAME,
-    query={"unix_socket": f"/cloudsql/{INSTANCE_CONNECTION_NAME}"}
-)
+# Initialize Cloud SQL connector
+connector = Connector()
 
-engine = sqlalchemy.create_engine(db_url)
+def getconn():
+    return connector.connect(
+        INSTANCE_CONNECTION_NAME,
+        "pymysql",
+        user=DB_USER,
+        password=DB_PASS,
+        db=DB_NAME,
+    )
+
+# Engine Configuration
+engine = sqlalchemy.create_engine(
+    "mysql+pymysql://",
+    creator=getconn,
+)
 
 @functions_framework.http
 def time_http(request):
