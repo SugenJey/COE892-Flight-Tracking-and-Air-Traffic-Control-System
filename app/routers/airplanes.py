@@ -1,0 +1,100 @@
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..models import Airplane
+from ..schemas.airplane import AirplaneCreate, AirplaneRead, AirplaneUpdate
+
+router = APIRouter(prefix="/airplanes", tags=["Airplanes"])
+
+
+def _get_airplane_or_404(tail_number: str, db: Session) -> Airplane:
+    airplane = db.query(Airplane).filter(Airplane.tail_number == tail_number).first()
+    if not airplane:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Airplane '{tail_number}' not found",
+        )
+    return airplane
+
+
+@router.get("/", response_model=list[AirplaneRead])
+def list_airplanes(
+    operational_status: Literal["active", "maintenance", "grounded"] | None = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(Airplane)
+    if operational_status is not None:
+        query = query.filter(Airplane.operational_status == operational_status)
+    return query.all()
+
+
+@router.get("/{tail_number}", response_model=AirplaneRead)
+def get_airplane(tail_number: str, db: Session = Depends(get_db)):
+    return _get_airplane_or_404(tail_number, db)
+
+
+@router.post("/", response_model=AirplaneRead, status_code=status.HTTP_201_CREATED)
+def create_airplane(payload: AirplaneCreate, db: Session = Depends(get_db)):
+    existing = (
+        db.query(Airplane)
+        .filter(Airplane.tail_number == payload.tail_number)
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Airplane with tail number '{payload.tail_number}' already exists",
+        )
+
+    airplane = Airplane(
+        tail_number=payload.tail_number,
+        model=payload.model,
+        fuel_capacity_l=payload.fuel_capacity_l,
+        current_fuel_l=payload.current_fuel_l,
+        operational_status=payload.operational_status,
+    )
+    db.add(airplane)
+    db.commit()
+    db.refresh(airplane)
+    return airplane
+
+
+@router.put("/{tail_number}", response_model=AirplaneRead)
+def update_airplane(
+    tail_number: str, payload: AirplaneUpdate, db: Session = Depends(get_db)
+):
+    airplane = _get_airplane_or_404(tail_number, db)
+    update_data = payload.model_dump(exclude_unset=True)
+
+    new_capacity = update_data.get("fuel_capacity_l", airplane.fuel_capacity_l)
+    new_fuel = update_data.get("current_fuel_l", airplane.current_fuel_l)
+    if new_fuel > new_capacity:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="current_fuel_l cannot exceed fuel_capacity_l",
+        )
+
+    for field, value in update_data.items():
+        setattr(airplane, field, value)
+
+    db.commit()
+    db.refresh(airplane)
+    return airplane
+
+
+@router.delete("/{tail_number}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_airplane(tail_number: str, db: Session = Depends(get_db)):
+    airplane = _get_airplane_or_404(tail_number, db)
+
+    if airplane.assigned_runway is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Airplane '{tail_number}' is currently assigned to runway "
+                   f"{airplane.assigned_runway.runway_identifier}; release it first",
+        )
+
+    db.delete(airplane)
+    db.commit()

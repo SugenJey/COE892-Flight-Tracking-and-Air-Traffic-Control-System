@@ -1,6 +1,6 @@
-functions-framework
+fastapi
+uvicorn[standard]
 sqlalchemy
 pymysql
-cloud-sql-python-connector[pymysql]
-flask
-gunicorn
+cryptography
+python-dotenv
