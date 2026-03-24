@@ -1,28 +1,49 @@
 import os
 
+import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+_SQLITE_LOCAL_URL = "sqlite:///./atc_local.db"
 
-def build_database_url() -> str:
+
+def build_database_url() -> sqlalchemy.engine.URL | str:
     db_user = os.getenv("DB_USER")
     db_pass = os.getenv("DB_PASS")
     db_name = os.getenv("DB_NAME")
     icn = os.getenv("INSTANCE_CONNECTION_NAME")
 
+    # Cloud Run: use Cloud SQL Unix socket
     if icn:
-        return (
-            f"mysql+pymysql://{db_user}:{db_pass}@/{db_name}"
-            f"?unix_socket=/cloudsql/{icn}"
+        return sqlalchemy.engine.url.URL.create(
+            drivername="mysql+pymysql",
+            username=db_user,
+            password=db_pass,
+            database=db_name,
+            query={"unix_socket": f"/cloudsql/{icn}"},
         )
 
-    db_host = os.getenv("DB_HOST", "127.0.0.1")
-    db_port = os.getenv("DB_PORT", "3306")
-    return f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+    # Local MySQL: use TCP when credentials are provided
+    if db_user and db_name:
+        db_host = os.getenv("DB_HOST", "127.0.0.1")
+        db_port = int(os.getenv("DB_PORT", "3306"))
+        return sqlalchemy.engine.url.URL.create(
+            drivername="mysql+pymysql",
+            username=db_user,
+            password=db_pass,
+            host=db_host,
+            port=db_port,
+            database=db_name,
+        )
+
+    # Fallback: SQLite for local development and testing (no setup required)
+    return _SQLITE_LOCAL_URL
 
 
 def create_db_engine():
-    return create_engine(build_database_url(), pool_pre_ping=True)
+    url = build_database_url()
+    connect_args = {"check_same_thread": False} if str(url).startswith("sqlite") else {}
+    return create_engine(url, pool_pre_ping=True, connect_args=connect_args)
 
 
 engine = create_db_engine()
