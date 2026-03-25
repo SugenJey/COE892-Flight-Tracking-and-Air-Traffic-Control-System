@@ -69,3 +69,18 @@ def health_db():
         return {"status": "ok", "db_time": db_time}
     except Exception as e:
         return {"status": "error", "error": traceback.format_exc()}
+
+
+@app.post("/admin/recreate-db", tags=["Admin"])
+def recreate_db():
+    """
+    Drops all tables and recreates them from the current schema.
+    Use once when the DB has a stale/old schema. Remove after use.
+    """
+    try:
+        models.Base.metadata.drop_all(bind=engine)
+        models.Base.metadata.create_all(bind=engine)
+        logger.info("All tables dropped and recreated successfully")
+        return {"status": "ok", "message": "All tables dropped and recreated"}
+    except Exception as e:
+        return {"status": "error", "error": traceback.format_exc()}
