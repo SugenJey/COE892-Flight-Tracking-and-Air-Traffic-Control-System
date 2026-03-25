@@ -2,7 +2,8 @@ import logging
 import traceback
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from . import models
@@ -42,6 +43,13 @@ app.include_router(airports.router)
 app.include_router(runways.router)
 app.include_router(airplanes.router)
 app.include_router(fuel.router)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_detail = traceback.format_exc()
+    logger.error("Unhandled exception: %s", error_detail)
+    return JSONResponse(status_code=500, content={"error": str(exc), "detail": error_detail})
 
 
 @app.get("/health", tags=["Health"])
