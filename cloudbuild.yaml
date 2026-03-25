@@ -3,7 +3,7 @@ steps:
     args:
       - run
       - deploy
-      - atc-management
+      - airports
       - --source=.
       - --region=northamerica-northeast2
       - --allow-unauthenticated
