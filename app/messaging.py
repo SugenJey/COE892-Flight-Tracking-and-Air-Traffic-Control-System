@@ -44,7 +44,7 @@ def publish_event(routing_key: str, payload: dict) -> None:
             body=body,
             oidc_token=tasks_v2.OidcToken(
                 service_account_email=sa_email,
-                audience=None,
+                audience=URL,
             ),
         ),
     )
