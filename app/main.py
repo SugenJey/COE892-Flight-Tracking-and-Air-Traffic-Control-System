@@ -3,12 +3,13 @@ import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from . import models
 from .database import engine, build_database_url
-from .routers import airports, runways, airplanes, fuel
+from .routers import airports, runways, airplanes, fuel, events
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ app.include_router(airports.router)
 app.include_router(runways.router)
 app.include_router(airplanes.router)
 app.include_router(fuel.router)
+app.include_router(events.router)
 
 
 @app.exception_handler(Exception)
@@ -50,6 +52,15 @@ async def global_exception_handler(request: Request, exc: Exception):
     error_detail = traceback.format_exc()
     logger.error("Unhandled exception: %s", error_detail)
     return JSONResponse(status_code=500, content={"error": str(exc), "detail": error_detail})
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/ui/")
+
+
+# Mount static files last so explicit routes above always take priority
+app.mount("/ui", StaticFiles(directory="frontend", html=True), name="frontend")
 
 
 @app.get("/health", tags=["Health"])

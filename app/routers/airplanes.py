@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..messaging import publish_event
 from ..models import Airplane
 from ..schemas.airplane import AirplaneCreate, AirplaneRead, AirplaneUpdate
 
@@ -77,11 +78,20 @@ def update_airplane(
             detail="current_fuel_l cannot exceed fuel_capacity_l",
         )
 
+    old_status = airplane.operational_status
     for field, value in update_data.items():
         setattr(airplane, field, value)
 
     db.commit()
     db.refresh(airplane)
+
+    if "operational_status" in update_data and airplane.operational_status != old_status:
+        publish_event("airplane.status_changed", {
+            "tail_number": airplane.tail_number,
+            "old_status": old_status,
+            "new_status": airplane.operational_status,
+        })
+
     return airplane
 
 

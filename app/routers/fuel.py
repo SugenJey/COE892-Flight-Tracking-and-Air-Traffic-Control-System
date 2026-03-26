@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..messaging import publish_event
 from ..models import Airplane, FuelStock, Runway
 from ..schemas.fuel import (
     FuelDispenseRequest,
@@ -111,6 +112,29 @@ def dispense_fuel(payload: FuelDispenseRequest, db: Session = Depends(get_db)):
     fuel_stock.quantity_l -= payload.fuel_required_l
     fuel_stock.last_updated = datetime.utcnow()
     db.commit()
+
+    publish_event("fuel.dispensed", {
+        "tail_number": payload.tail_number,
+        "runway_id": payload.runway_id,
+        "airport_id": runway.airport_id,
+        "fuel_dispensed_l": payload.fuel_required_l,
+        "remaining_stock_l": fuel_stock.quantity_l,
+    })
+
+    publish_event("runway.assigned", {
+        "tail_number": payload.tail_number,
+        "runway_id": payload.runway_id,
+        "runway_identifier": runway.runway_identifier,
+        "airport_id": runway.airport_id,
+    })
+
+    if fuel_stock.quantity_l < fuel_stock.capacity_l * 0.20:
+        publish_event("fuel.low", {
+            "airport_id": runway.airport_id,
+            "remaining_l": fuel_stock.quantity_l,
+            "capacity_l": fuel_stock.capacity_l,
+            "percent": round(fuel_stock.quantity_l / fuel_stock.capacity_l * 100, 1),
+        })
 
     return FuelDispenseResponse(
         message="Fuel dispensed and runway assigned successfully",

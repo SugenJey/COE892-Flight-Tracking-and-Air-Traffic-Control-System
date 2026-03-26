@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..messaging import publish_event
 from ..models import Airplane, Airport, Runway
 from ..schemas.runway import RunwayAssign, RunwayCreate, RunwayRead, RunwayUpdate
 
@@ -118,6 +119,14 @@ def assign_airplane(
     runway.assigned_tail_number = payload.tail_number
     db.commit()
     db.refresh(runway)
+
+    publish_event("runway.assigned", {
+        "tail_number": payload.tail_number,
+        "runway_id": runway.id,
+        "runway_identifier": runway.runway_identifier,
+        "airport_id": runway.airport_id,
+    })
+
     return runway
 
 
@@ -131,8 +140,17 @@ def release_runway(runway_id: int, db: Session = Depends(get_db)):
             detail="Runway is already available",
         )
 
+    prev_tail = runway.assigned_tail_number
     runway.status = "available"
     runway.assigned_tail_number = None
     db.commit()
     db.refresh(runway)
+
+    publish_event("runway.released", {
+        "runway_id": runway.id,
+        "runway_identifier": runway.runway_identifier,
+        "airport_id": runway.airport_id,
+        "released_tail_number": prev_tail,
+    })
+
     return runway

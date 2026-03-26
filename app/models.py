@@ -86,3 +86,12 @@ class FuelStock(Base):
     )
 
     airport = relationship("Airport", back_populates="fuel_stock")
+
+
+class Event(Base):
+    __tablename__ = "events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String(64), nullable=False, index=True)
+    payload = Column(String(1024), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

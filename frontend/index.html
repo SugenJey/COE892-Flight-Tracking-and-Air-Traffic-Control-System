@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATC Management System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside id="sidebar">
+  <div class="logo">ATC <span>Management</span></div>
+  <nav>
+    <a href="#" data-page="airports" class="active">
+      <span class="icon">✈</span><span>Airports</span>
+    </a>
+    <a href="#" data-page="runways">
+      <span class="icon">⬛</span><span>Runways</span>
+    </a>
+    <a href="#" data-page="airplanes">
+      <span class="icon">🛩</span><span>Airplanes</span>
+    </a>
+    <a href="#" data-page="fuel">
+      <span class="icon">⛽</span><span>Fuel</span>
+    </a>
+    <a href="#" data-page="events">
+      <span class="icon">📡</span><span>Events</span>
+    </a>
+  </nav>
+  <div class="sidebar-footer">COE892 · Winter 2026</div>
+</aside>
+
+<!-- ── Main ── -->
+<main id="main">
+
+  <!-- Airports -->
+  <section id="page-airports" class="page active">
+    <h1>Airport Tracker</h1>
+    <p class="page-subtitle">Register and manage airports. Each airport gets a fuel stock record automatically.</p>
+
+    <div class="card">
+      <div class="card-title">All Airports</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>IATA</th><th>Name</th><th>Location</th><th>Runways</th><th>Fuel</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="airports-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Register New Airport</div>
+      <form onsubmit="createAirport(event)">
+        <div class="form-row">
+          <div class="field"><label>Airport Name</label><input name="name_" placeholder="Toronto Pearson" required /></div>
+          <div class="field"><label>IATA Code</label><input name="iata" placeholder="YYZ" maxlength="3" style="width:80px" required /></div>
+          <div class="field"><label>City</label><input name="city" placeholder="Toronto" required /></div>
+          <div class="field"><label>Country</label><input name="country" placeholder="Canada" required /></div>
+          <div class="field"><label>Runways</label><input name="runways" type="number" value="2" min="1" style="width:70px" required /></div>
+          <div class="field"><label>Fuel Capacity (L)</label><input name="fuel_cap" type="number" value="500000" min="1000" required /></div>
+          <div class="field"><label>Initial Fuel (L)</label><input name="fuel_init" type="number" value="0" min="0" required /></div>
+          <button type="submit" class="btn btn-primary" style="align-self:flex-end">Create</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Runways -->
+  <section id="page-runways" class="page">
+    <h1>Runway Tracker</h1>
+    <p class="page-subtitle">Monitor runway availability and aircraft assignments.</p>
+
+    <div class="card">
+      <div class="card-title">All Runways</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Airport</th><th>ID</th><th>Length</th><th>Surface</th><th>Status</th><th>Assigned</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="runways-tbody">
+            <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Add Runway</div>
+      <form onsubmit="createRunway(event)">
+        <div class="form-row">
+          <div class="field">
+            <label>Airport</label>
+            <select name="airport_id" id="runway-airport-id" required>
+              <option value="">Select airport...</option>
+            </select>
+          </div>
+          <div class="field"><label>Runway ID</label><input name="identifier" placeholder="06L" required /></div>
+          <div class="field"><label>Length (m)</label><input name="length" type="number" placeholder="3000" min="100" required /></div>
+          <div class="field">
+            <label>Surface</label>
+            <select name="surface">
+              <option>asphalt</option><option>concrete</option><option>gravel</option><option>grass</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" style="align-self:flex-end">Add Runway</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Airplanes -->
+  <section id="page-airplanes" class="page">
+    <h1>Airplane Tracker</h1>
+    <p class="page-subtitle">Aircraft registry with fuel levels and operational status.</p>
+
+    <div class="card">
+      <div class="card-title">Aircraft Registry</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Tail #</th><th>Model</th><th>Status</th><th>Fuel Level</th><th>Change Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="airplanes-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Register Aircraft</div>
+      <form onsubmit="createAirplane(event)">
+        <div class="form-row">
+          <div class="field"><label>Tail Number</label><input name="tail" placeholder="C-FXYZ" required /></div>
+          <div class="field"><label>Model</label><input name="model_" placeholder="Boeing 737" required /></div>
+          <div class="field"><label>Fuel Capacity (L)</label><input name="capacity" type="number" placeholder="20000" min="1" required /></div>
+          <div class="field"><label>Current Fuel (L)</label><input name="current" type="number" placeholder="5000" min="0" required /></div>
+          <div class="field">
+            <label>Status</label>
+            <select name="opstatus">
+              <option value="active">Active</option>
+              <option value="maintenance">Maintenance</option>
+              <option value="grounded">Grounded</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" style="align-self:flex-end">Register</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Fuel -->
+  <section id="page-fuel" class="page">
+    <h1>Fuel Management</h1>
+    <p class="page-subtitle">Monitor airport fuel stock, restock, and dispense fuel to aircraft.</p>
+
+    <div id="fuel-stocks" style="margin-bottom:20px">Loading...</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div class="card">
+        <div class="card-title">Restock Fuel</div>
+        <p style="color:var(--muted);font-size:12px;margin-bottom:12px">Click "Fuel" on an airport to pre-fill the airport ID.</p>
+        <input type="hidden" id="restock-airport-id" />
+        <div id="fuel-detail" style="margin-bottom:12px;font-size:13px"></div>
+        <form onsubmit="restockFuel(event)">
+          <div class="form-row">
+            <div class="field">
+              <label>Airport ID</label>
+              <input id="fuel-airport-id" type="number" placeholder="1" min="1"
+                oninput="loadFuelStock(+this.value);document.getElementById('restock-airport-id').value=this.value" />
+            </div>
+            <div class="field"><label>Quantity (L)</label><input name="qty" type="number" placeholder="50000" min="1" required /></div>
+            <button type="submit" class="btn btn-success" style="align-self:flex-end">Restock</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Dispense Fuel &amp; Assign Runway</div>
+        <p style="color:var(--muted);font-size:12px;margin-bottom:12px">Atomically validates fuel, assigns runway, and deducts stock.</p>
+        <form onsubmit="dispenseFuel(event)">
+          <div class="form-row">
+            <div class="field"><label>Tail Number</label><input name="tail" placeholder="C-FXYZ" required /></div>
+            <div class="field"><label>Runway ID</label><input name="runway_id" type="number" placeholder="1" min="1" required /></div>
+            <div class="field"><label>Fuel Required (L)</label><input name="fuel_l" type="number" placeholder="8000" min="1" required /></div>
+            <button type="submit" class="btn btn-primary" style="align-self:flex-end">Dispense</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Events -->
+  <section id="page-events" class="page">
+    <h1>Event Log</h1>
+    <p class="page-subtitle">Real-time events published via RabbitMQ and stored by the worker. Refreshes every 5 seconds.</p>
+
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Recent Events</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadEvents()">Refresh</button>
+      </div>
+      <div id="event-log" class="event-log">
+        <p style="color:var(--muted);text-align:center;padding:24px">Loading...</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
