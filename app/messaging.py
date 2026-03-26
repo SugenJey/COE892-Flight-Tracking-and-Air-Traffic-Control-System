@@ -31,6 +31,7 @@ def publish_event(routing_key: str, payload: dict) -> None:
 
     location = os.getenv("CLOUD_TASKS_LOCATION", "northamerica-northeast2")
     queue = os.getenv("CLOUD_TASKS_QUEUE", "atc-events")
+    sa_email = os.getenv("SA_EMAIL", "")
 
     url = f"{handler}/tasks/handle"
     body = json.dumps({"event_type": routing_key, **payload}).encode("utf-8")
@@ -41,6 +42,10 @@ def publish_event(routing_key: str, payload: dict) -> None:
             url=url,
             headers={"Content-Type": "application/json"},
             body=body,
+            oidc_token=tasks_v2.OidcToken(
+                service_account_email=sa_email,
+                audience=None,
+            ),
         ),
     )
 
