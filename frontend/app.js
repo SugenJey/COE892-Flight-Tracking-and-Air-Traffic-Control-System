@@ -77,16 +77,19 @@ async function createAirport(e) {
       fuel_capacity_l: +f.fuel_cap.value,
       initial_fuel_l: +f.fuel_init.value,
     });
-    toast('Airport created');
+    toast('Airport queued — refreshing shortly...');
     f.reset();
-    loadAirports();
+    setTimeout(loadAirports, 1500);
   } catch (err) { toast(err.message, 'err'); }
 }
 
 async function deleteAirport(id) {
   if (!confirm('Delete airport and all its runways/fuel?')) return;
-  try { await api('DELETE', `/airports/${id}`); toast('Airport deleted'); loadAirports(); }
-  catch (err) { toast(err.message, 'err'); }
+  try {
+    await api('DELETE', `/airports/${id}`);
+    toast('Airport delete queued — refreshing shortly...');
+    setTimeout(loadAirports, 1500);
+  } catch (err) { toast(err.message, 'err'); }
 }
 
 function viewFuel(airportId) {
@@ -132,9 +135,9 @@ async function createRunway(e) {
       length_m: +f.length.value,
       surface_type: f.surface.value,
     });
-    toast('Runway created');
+    toast('Runway queued — refreshing shortly...');
     f.reset();
-    loadRunways();
+    setTimeout(loadRunways, 1500);
   } catch (err) { toast(err.message, 'err'); }
 }
 
@@ -142,19 +145,25 @@ function showAssignForm(runwayId) {
   const tail = prompt('Enter tail number to assign:');
   if (!tail) return;
   api('POST', `/runways/${runwayId}/assign`, { tail_number: tail.toUpperCase() })
-    .then(() => { toast('Runway assigned'); loadRunways(); })
+    .then(() => { toast('Runway assign queued — refreshing shortly...'); setTimeout(loadRunways, 1500); })
     .catch(err => toast(err.message, 'err'));
 }
 
 async function releaseRunway(runwayId) {
-  try { await api('POST', `/runways/${runwayId}/release`); toast('Runway released'); loadRunways(); }
-  catch (err) { toast(err.message, 'err'); }
+  try {
+    await api('POST', `/runways/${runwayId}/release`);
+    toast('Runway release queued — refreshing shortly...');
+    setTimeout(loadRunways, 1500);
+  } catch (err) { toast(err.message, 'err'); }
 }
 
 async function deleteRunway(runwayId) {
   if (!confirm('Delete this runway?')) return;
-  try { await api('DELETE', `/runways/${runwayId}`); toast('Runway deleted'); loadRunways(); }
-  catch (err) { toast(err.message, 'err'); }
+  try {
+    await api('DELETE', `/runways/${runwayId}`);
+    toast('Runway delete queued — refreshing shortly...');
+    setTimeout(loadRunways, 1500);
+  } catch (err) { toast(err.message, 'err'); }
 }
 
 // ── Airplanes ─────────────────────────────────────────────────
@@ -199,24 +208,27 @@ async function createAirplane(e) {
       current_fuel_l: +f.current.value,
       operational_status: f.opstatus.value,
     });
-    toast('Airplane registered');
+    toast('Airplane queued — refreshing shortly...');
     f.reset();
-    loadAirplanes();
+    setTimeout(loadAirplanes, 1500);
   } catch (err) { toast(err.message, 'err'); }
 }
 
 async function changeStatus(tail, newStatus) {
   try {
     await api('PUT', `/airplanes/${tail}`, { operational_status: newStatus });
-    toast(`${tail} → ${newStatus}`);
-    loadAirplanes();
+    toast(`${tail} → ${newStatus} queued...`);
+    setTimeout(loadAirplanes, 1500);
   } catch (err) { toast(err.message, 'err'); }
 }
 
 async function deleteAirplane(tail) {
   if (!confirm(`Delete airplane ${tail}?`)) return;
-  try { await api('DELETE', `/airplanes/${tail}`); toast('Airplane deleted'); loadAirplanes(); }
-  catch (err) { toast(err.message, 'err'); }
+  try {
+    await api('DELETE', `/airplanes/${tail}`);
+    toast('Airplane delete queued — refreshing shortly...');
+    setTimeout(loadAirplanes, 1500);
+  } catch (err) { toast(err.message, 'err'); }
 }
 
 // ── Fuel ──────────────────────────────────────────────────────
@@ -267,10 +279,9 @@ async function restockFuel(e) {
   if (!id) { toast('Select an airport first', 'err'); return; }
   try {
     await api('PUT', `/fuel/${id}/restock`, { quantity_l: +f.qty.value });
-    toast('Fuel restocked');
+    toast('Fuel restock queued — refreshing shortly...');
     f.reset();
-    loadAllFuelStocks();
-    loadFuelStock(id);
+    setTimeout(() => { loadAllFuelStocks(); loadFuelStock(id); }, 1500);
   } catch (err) { toast(err.message, 'err'); }
 }
 
@@ -278,14 +289,14 @@ async function dispenseFuel(e) {
   e.preventDefault();
   const f = e.target;
   try {
-    const res = await api('POST', '/fuel/dispense', {
+    await api('POST', '/fuel/dispense', {
       tail_number: f.tail.value.toUpperCase(),
       runway_id: +f.runway_id.value,
       fuel_required_l: +f.fuel_l.value,
     });
-    toast(`Dispensed ${res.fuel_dispensed_l.toLocaleString()} L — ${res.remaining_stock_l.toLocaleString()} L remaining`);
+    toast('Fuel dispense queued — refreshing shortly...');
     f.reset();
-    loadAllFuelStocks();
+    setTimeout(loadAllFuelStocks, 1500);
   } catch (err) { toast(err.message, 'err'); }
 }
 

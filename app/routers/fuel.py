@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -8,7 +6,6 @@ from ..messaging import publish_event
 from ..models import Airplane, FuelStock, Runway
 from ..schemas.fuel import (
     FuelDispenseRequest,
-    FuelDispenseResponse,
     FuelRestockRequest,
     FuelStockRead,
 )
@@ -33,31 +30,22 @@ def get_fuel_stock(airport_id: int, db: Session = Depends(get_db)):
     return _get_fuel_stock_or_404(airport_id, db)
 
 
-@router.put("/{airport_id}/restock", response_model=FuelStockRead)
-def restock_fuel(
-    airport_id: int, payload: FuelRestockRequest, db: Session = Depends(get_db)
-):
-    fuel_stock = _get_fuel_stock_or_404(airport_id, db)
-
-    new_quantity = fuel_stock.quantity_l + payload.quantity_l
-    fuel_stock.quantity_l = min(new_quantity, fuel_stock.capacity_l)
-    fuel_stock.last_updated = datetime.utcnow()
-
-    db.commit()
-    db.refresh(fuel_stock)
-    return fuel_stock
+@router.put("/{airport_id}/restock", status_code=status.HTTP_202_ACCEPTED)
+def restock_fuel(airport_id: int, payload: FuelRestockRequest, db: Session = Depends(get_db)):
+    _get_fuel_stock_or_404(airport_id, db)
+    publish_event("fuel.restock", {"airport_id": airport_id, "quantity_l": payload.quantity_l})
+    return {"status": "queued", "operation": "fuel.restock"}
 
 
-@router.post("/dispense", response_model=FuelDispenseResponse)
+@router.post("/dispense", status_code=status.HTTP_202_ACCEPTED)
 def dispense_fuel(payload: FuelDispenseRequest, db: Session = Depends(get_db)):
     """
-    Multi-step atomic fuel dispense and runway assignment.
+    Validates all pre-conditions synchronously, then enqueues the dispense operation.
 
     Validation order:
     1. Airplane exists and is active
     2. Runway exists and is available
     3. Airport fuel stock is sufficient
-    4. Atomically: mark runway occupied, deduct fuel, assign airplane
     """
     airplane = (
         db.query(Airplane)
@@ -107,39 +95,10 @@ def dispense_fuel(payload: FuelDispenseRequest, db: Session = Depends(get_db)):
             ),
         )
 
-    runway.status = "occupied"
-    runway.assigned_tail_number = payload.tail_number
-    fuel_stock.quantity_l -= payload.fuel_required_l
-    fuel_stock.last_updated = datetime.utcnow()
-    db.commit()
-
-    publish_event("fuel.dispensed", {
+    publish_event("fuel.dispense", {
         "tail_number": payload.tail_number,
         "runway_id": payload.runway_id,
         "airport_id": runway.airport_id,
-        "fuel_dispensed_l": payload.fuel_required_l,
-        "remaining_stock_l": fuel_stock.quantity_l,
+        "fuel_required_l": payload.fuel_required_l,
     })
-
-    publish_event("runway.assigned", {
-        "tail_number": payload.tail_number,
-        "runway_id": payload.runway_id,
-        "runway_identifier": runway.runway_identifier,
-        "airport_id": runway.airport_id,
-    })
-
-    if fuel_stock.quantity_l < fuel_stock.capacity_l * 0.20:
-        publish_event("fuel.low", {
-            "airport_id": runway.airport_id,
-            "remaining_l": fuel_stock.quantity_l,
-            "capacity_l": fuel_stock.capacity_l,
-            "percent": round(fuel_stock.quantity_l / fuel_stock.capacity_l * 100, 1),
-        })
-
-    return FuelDispenseResponse(
-        message="Fuel dispensed and runway assigned successfully",
-        tail_number=payload.tail_number,
-        runway_id=payload.runway_id,
-        fuel_dispensed_l=payload.fuel_required_l,
-        remaining_stock_l=fuel_stock.quantity_l,
-    )
+    return {"status": "queued", "operation": "fuel.dispense"}

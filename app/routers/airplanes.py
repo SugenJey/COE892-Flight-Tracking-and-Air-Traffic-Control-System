@@ -37,7 +37,7 @@ def get_airplane(tail_number: str, db: Session = Depends(get_db)):
     return _get_airplane_or_404(tail_number, db)
 
 
-@router.post("/", response_model=AirplaneRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_202_ACCEPTED)
 def create_airplane(payload: AirplaneCreate, db: Session = Depends(get_db)):
     existing = (
         db.query(Airplane)
@@ -49,27 +49,15 @@ def create_airplane(payload: AirplaneCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Airplane with tail number '{payload.tail_number}' already exists",
         )
-
-    airplane = Airplane(
-        tail_number=payload.tail_number,
-        model=payload.model,
-        fuel_capacity_l=payload.fuel_capacity_l,
-        current_fuel_l=payload.current_fuel_l,
-        operational_status=payload.operational_status,
-    )
-    db.add(airplane)
-    db.commit()
-    db.refresh(airplane)
-    return airplane
+    publish_event("airplane.create", payload.model_dump())
+    return {"status": "queued", "operation": "airplane.create"}
 
 
-@router.put("/{tail_number}", response_model=AirplaneRead)
-def update_airplane(
-    tail_number: str, payload: AirplaneUpdate, db: Session = Depends(get_db)
-):
+@router.put("/{tail_number}", status_code=status.HTTP_202_ACCEPTED)
+def update_airplane(tail_number: str, payload: AirplaneUpdate, db: Session = Depends(get_db)):
     airplane = _get_airplane_or_404(tail_number, db)
-    update_data = payload.model_dump(exclude_unset=True)
 
+    update_data = payload.model_dump(exclude_unset=True)
     new_capacity = update_data.get("fuel_capacity_l", airplane.fuel_capacity_l)
     new_fuel = update_data.get("current_fuel_l", airplane.current_fuel_l)
     if new_fuel > new_capacity:
@@ -78,33 +66,18 @@ def update_airplane(
             detail="current_fuel_l cannot exceed fuel_capacity_l",
         )
 
-    old_status = airplane.operational_status
-    for field, value in update_data.items():
-        setattr(airplane, field, value)
-
-    db.commit()
-    db.refresh(airplane)
-
-    if "operational_status" in update_data and airplane.operational_status != old_status:
-        publish_event("airplane.status_changed", {
-            "tail_number": airplane.tail_number,
-            "old_status": old_status,
-            "new_status": airplane.operational_status,
-        })
-
-    return airplane
+    publish_event("airplane.update", {"tail_number": tail_number, **update_data})
+    return {"status": "queued", "operation": "airplane.update"}
 
 
-@router.delete("/{tail_number}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{tail_number}", status_code=status.HTTP_202_ACCEPTED)
 def delete_airplane(tail_number: str, db: Session = Depends(get_db)):
     airplane = _get_airplane_or_404(tail_number, db)
-
     if airplane.assigned_runway is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Airplane '{tail_number}' is currently assigned to runway "
                    f"{airplane.assigned_runway.runway_identifier}; release it first",
         )
-
-    db.delete(airplane)
-    db.commit()
+    publish_event("airplane.delete", {"tail_number": tail_number})
+    return {"status": "queued", "operation": "airplane.delete"}

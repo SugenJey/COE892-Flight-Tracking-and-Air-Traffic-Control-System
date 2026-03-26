@@ -29,7 +29,7 @@ def get_runway(runway_id: int, db: Session = Depends(get_db)):
     return _get_runway_or_404(runway_id, db)
 
 
-@router.post("/", response_model=RunwayRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_202_ACCEPTED)
 def create_runway(payload: RunwayCreate, db: Session = Depends(get_db)):
     airport = db.query(Airport).filter(Airport.id == payload.airport_id).first()
     if not airport:
@@ -37,7 +37,6 @@ def create_runway(payload: RunwayCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Airport with id {payload.airport_id} not found",
         )
-
     existing_count = (
         db.query(Runway).filter(Runway.airport_id == payload.airport_id).count()
     )
@@ -49,33 +48,18 @@ def create_runway(payload: RunwayCreate, db: Session = Depends(get_db)):
                 f"maximum allowed is {airport.num_runways}"
             ),
         )
-
-    runway = Runway(
-        airport_id=payload.airport_id,
-        runway_identifier=payload.runway_identifier,
-        length_m=payload.length_m,
-        surface_type=payload.surface_type,
-    )
-    db.add(runway)
-    db.commit()
-    db.refresh(runway)
-    return runway
+    publish_event("runway.create", payload.model_dump())
+    return {"status": "queued", "operation": "runway.create"}
 
 
-@router.put("/{runway_id}", response_model=RunwayRead)
-def update_runway(
-    runway_id: int, payload: RunwayUpdate, db: Session = Depends(get_db)
-):
-    runway = _get_runway_or_404(runway_id, db)
-    update_data = payload.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(runway, field, value)
-    db.commit()
-    db.refresh(runway)
-    return runway
+@router.put("/{runway_id}", status_code=status.HTTP_202_ACCEPTED)
+def update_runway(runway_id: int, payload: RunwayUpdate, db: Session = Depends(get_db)):
+    _get_runway_or_404(runway_id, db)
+    publish_event("runway.update", {"runway_id": runway_id, **payload.model_dump(exclude_unset=True)})
+    return {"status": "queued", "operation": "runway.update"}
 
 
-@router.delete("/{runway_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{runway_id}", status_code=status.HTTP_202_ACCEPTED)
 def delete_runway(runway_id: int, db: Session = Depends(get_db)):
     runway = _get_runway_or_404(runway_id, db)
     if runway.status == "occupied":
@@ -83,22 +67,18 @@ def delete_runway(runway_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail="Cannot delete an occupied runway; release it first",
         )
-    db.delete(runway)
-    db.commit()
+    publish_event("runway.delete", {"runway_id": runway_id})
+    return {"status": "queued", "operation": "runway.delete"}
 
 
-@router.post("/{runway_id}/assign", response_model=RunwayRead)
-def assign_airplane(
-    runway_id: int, payload: RunwayAssign, db: Session = Depends(get_db)
-):
+@router.post("/{runway_id}/assign", status_code=status.HTTP_202_ACCEPTED)
+def assign_airplane(runway_id: int, payload: RunwayAssign, db: Session = Depends(get_db)):
     runway = _get_runway_or_404(runway_id, db)
-
     if runway.status == "occupied":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Runway is already occupied",
         )
-
     airplane = (
         db.query(Airplane)
         .filter(Airplane.tail_number == payload.tail_number)
@@ -114,43 +94,25 @@ def assign_airplane(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Airplane '{payload.tail_number}' is not active (status: {airplane.operational_status})",
         )
-
-    runway.status = "occupied"
-    runway.assigned_tail_number = payload.tail_number
-    db.commit()
-    db.refresh(runway)
-
-    publish_event("runway.assigned", {
+    publish_event("runway.assign", {
+        "runway_id": runway_id,
         "tail_number": payload.tail_number,
-        "runway_id": runway.id,
-        "runway_identifier": runway.runway_identifier,
-        "airport_id": runway.airport_id,
     })
+    return {"status": "queued", "operation": "runway.assign"}
 
-    return runway
 
-
-@router.post("/{runway_id}/release", response_model=RunwayRead)
+@router.post("/{runway_id}/release", status_code=status.HTTP_202_ACCEPTED)
 def release_runway(runway_id: int, db: Session = Depends(get_db)):
     runway = _get_runway_or_404(runway_id, db)
-
     if runway.status == "available":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Runway is already available",
         )
-
-    prev_tail = runway.assigned_tail_number
-    runway.status = "available"
-    runway.assigned_tail_number = None
-    db.commit()
-    db.refresh(runway)
-
-    publish_event("runway.released", {
-        "runway_id": runway.id,
+    publish_event("runway.release", {
+        "runway_id": runway_id,
+        "released_tail_number": runway.assigned_tail_number,
         "runway_identifier": runway.runway_identifier,
         "airport_id": runway.airport_id,
-        "released_tail_number": prev_tail,
     })
-
-    return runway
+    return {"status": "queued", "operation": "runway.release"}
