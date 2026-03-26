@@ -1,14 +1,12 @@
 """
-ATC Event Worker — RabbitMQ consumer.
+DEPRECATED — no longer used.
 
-Listens on the atc_events exchange, persists every received event to the
-MySQL events table so the frontend can poll GET /events/.
+Event processing has been migrated to Google Cloud Tasks.
+Cloud Tasks HTTP-POSTs each event directly to POST /tasks/handle inside the
+main FastAPI service, replacing the need for this standalone consumer process.
 
-Run locally:
-    python worker.py
-
-On Cloud Run (second service, same Docker image, CMD overridden):
-    CMD ["python", "worker.py"]
+This file is kept for reference only. The RabbitMQ/pika approach it describes
+is superseded by app/messaging.py (publisher) and app/routers/tasks.py (handler).
 """
 
 import json

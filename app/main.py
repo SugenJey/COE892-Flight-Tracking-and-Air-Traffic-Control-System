@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from . import models
 from .database import engine, build_database_url
-from .routers import airports, runways, airplanes, fuel, events
+from .routers import airports, runways, airplanes, fuel, events, tasks
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ app.include_router(runways.router)
 app.include_router(airplanes.router)
 app.include_router(fuel.router)
 app.include_router(events.router)
+app.include_router(tasks.router)
 
 
 @app.exception_handler(Exception)

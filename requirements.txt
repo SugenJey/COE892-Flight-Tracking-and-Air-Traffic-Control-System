@@ -4,5 +4,5 @@ sqlalchemy
 pymysql
 cryptography
 python-dotenv
-pika
+google-cloud-tasks
 aiofiles
