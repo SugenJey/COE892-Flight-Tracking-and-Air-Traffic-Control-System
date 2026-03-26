@@ -18,7 +18,7 @@ def _get_client() -> tasks_v2.CloudTasksClient:
 
 def publish_event(routing_key: str, payload: dict) -> None:
     """
-    Enqueues an HTTP task to Google Cloud Tasks targeting POST /tasks/handle.
+    Enqueues an HTTP POST task to Google Cloud Tasks targeting /tasks/handle.
     Fire-and-forget: silently skips if Cloud Tasks env vars are not set,
     so the API never fails due to messaging issues.
     """
@@ -33,23 +33,30 @@ def publish_event(routing_key: str, payload: dict) -> None:
     queue = os.getenv("CLOUD_TASKS_QUEUE", "atc-events")
     sa_email = os.getenv("SA_EMAIL", "")
 
+    url = f"{handler}/tasks/handle"
     body = json.dumps({"event_type": routing_key, **payload}).encode("utf-8")
 
-    http_request: dict = {
-        "http_method": tasks_v2.HttpMethod.POST,
-        "url": f"{handler}/tasks/handle",
-        "headers": {"Content-Type": "application/json"},
-        "body": body,
-    }
-    if sa_email:
-        http_request["oidc_token"] = {"service_account_email": sa_email}
-
-    task = {"http_request": http_request}
+    task = tasks_v2.Task(
+        http_request=tasks_v2.HttpRequest(
+            http_method=tasks_v2.HttpMethod.POST,
+            url=url,
+            headers={"Content-Type": "application/json"},
+            body=body,
+            oidc_token=tasks_v2.OidcToken(
+                service_account_email=sa_email,
+                audience=url,
+            ),
+        ),
+    )
 
     try:
         client = _get_client()
-        parent = client.queue_path(project, location, queue)
-        client.create_task(request={"parent": parent, "task": task})
+        client.create_task(
+            tasks_v2.CreateTaskRequest(
+                parent=client.queue_path(project, location, queue),
+                task=task,
+            )
+        )
         logger.info("Enqueued Cloud Task [%s]", routing_key)
     except Exception:
         logger.warning(
