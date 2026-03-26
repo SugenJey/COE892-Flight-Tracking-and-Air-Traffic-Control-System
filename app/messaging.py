@@ -24,7 +24,7 @@ def publish_event(routing_key: str, payload: dict) -> None:
     """
     project = os.getenv("GOOGLE_CLOUD_PROJECT")
     handler = os.getenv("SERVICE_URL", "").rstrip("/")
-
+    print(f"handler: {handler}")
     if not project or not handler:
         logger.debug("Cloud Tasks not configured — skipping event: %s", routing_key)
         return
