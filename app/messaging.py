@@ -29,7 +29,7 @@ def publish_event(routing_key: str, payload: dict) -> None:
         logger.debug("Cloud Tasks not configured — skipping event: %s", routing_key)
         return
 
-    location = os.getenv("CLOUD_TASKS_LOCATION", "northamerica-northeast2")
+    location = os.getenv("CLOUD_TASKS_LOCATION", "northamerica-northeast1")
     queue = os.getenv("CLOUD_TASKS_QUEUE", "atc-events")
 
     url = f"{handler}/tasks/handle"
