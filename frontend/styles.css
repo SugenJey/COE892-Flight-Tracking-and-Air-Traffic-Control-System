@@ -1,5 +1,9 @@
+/* Frontend styles for ATC dashboard: variables, layout and
+  component styles. Keep selectors scoped and variables in
+  `:root` for easy theming. */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Theme variables: colors, spacing and layout constants. */
 :root {
   --bg: #0f1117;
   --surface: #1a1d27;
@@ -16,6 +20,8 @@
   --sidebar-w: 220px;
 }
 
+/* Base page layout: dark background, readable text and a
+  two-column layout with a fixed sidebar and flexible main. */
 body {
   font-family: 'Inter', system-ui, sans-serif;
   background: var(--bg);
@@ -150,7 +156,10 @@ tr:hover td { background: var(--surface2); }
 .badge-yellow{ background: rgba(245,158,11,.15); color: var(--yellow); }
 .badge-blue  { background: rgba(79,142,247,.15); color: var(--accent); }
 
-/* ── Fuel bar ── */
+/* ── Fuel bar ──
+  Small horizontal progress bar used for airplane and
+  airport fuel visualization. Classes (high/mid/low)
+  map to green/yellow/red thresholds respectively. */
 .fuel-bar-wrap { width: 100%; background: var(--surface2); border-radius: 4px; height: 8px; overflow: hidden; }
 .fuel-bar { height: 100%; border-radius: 4px; transition: width 0.4s; }
 .fuel-bar.high  { background: var(--green); }
